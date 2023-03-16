@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,6 +12,9 @@ namespace Practical4.DataAccess.Repository.IRepository
     {
        public IEnumerable<Address> GetAll();
        Task<Address> Add(Address address);
+        Address GetFirstOrDefault(Expression<Func<Address, bool>> filter);
+        void Update(Address obj);
+
 
     }
 }

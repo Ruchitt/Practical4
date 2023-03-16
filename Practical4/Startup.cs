@@ -32,6 +32,7 @@ namespace Practical4
             builder.Services.AddScoped<IAddressRepository, AddressRepository>();
             builder.Services.AddScoped<IOrderRepository, OrderRepository>();
             builder.Services.AddScoped<IOrderAddressRepository, OrderAddressRepository>();
+            builder.Services.AddScoped<IOrderItemsRepository, OrderItemsRepository>();
 
 
         }

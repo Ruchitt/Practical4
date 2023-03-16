@@ -12,6 +12,7 @@ namespace Practical4.DataAccess.Repository.IRepository
     {
         void Update(Order obj);
         Order GetFirstOrDefault(Expression<Func<Order, bool>> filter);
+        public IEnumerable<Order> GetAll();
 
     }
 }

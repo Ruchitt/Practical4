@@ -10,7 +10,7 @@ namespace Practical4.Models
     {
 
 		public int AddressId { get; set; }
-
+        //public int? UserId { get; set; }
         public AddressType Type { get; set; }
         public string AddressDetail { get; set; }
 		public string Country { get; set; }

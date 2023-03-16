@@ -10,31 +10,25 @@ using System.Threading.Tasks;
 
 namespace Practical4.DataAccess.Repository
 {
-    public class OrderRepository:IOrderRepository
+    public class OrderItemsRepository:IOrderItemsRepository
     {
         private ApplicationDbContext _db;
-        internal DbSet<Order> dbSet;
+        internal DbSet<OrderItems> dbSet;
 
-        public OrderRepository(ApplicationDbContext db)
+        public OrderItemsRepository(ApplicationDbContext db)
         {
             _db = db;
-            this.dbSet = _db.Set<Order>();
+            this.dbSet = _db.Set<OrderItems>();
         }
-
-        public void Update(Order obj)
+        public OrderItems GetFirstOrDefault(Expression<Func<OrderItems, bool>> filter)
         {
-            _db.orders.Update(obj);
-            _db.SaveChanges();
-        }
-        public Order GetFirstOrDefault(Expression<Func<Order, bool>> filter)
-        {
-            IQueryable<Order> query = dbSet;
+            IQueryable<OrderItems> query = dbSet;
             query = query.Where(filter);
             return query.FirstOrDefault();
         }
-        public IEnumerable<Order> GetAll()
+        public IEnumerable<OrderItems> GetAll()
         {
-            return _db.orders.ToList();
+            return _db.orderItems.ToList();
         }
     }
 }

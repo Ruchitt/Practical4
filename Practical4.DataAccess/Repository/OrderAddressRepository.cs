@@ -1,8 +1,10 @@
-﻿using Practical4.DataAccess.Repository.IRepository;
+﻿using Microsoft.EntityFrameworkCore;
+using Practical4.DataAccess.Repository.IRepository;
 using Practical4.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
@@ -25,5 +27,10 @@ namespace Practical4.DataAccess.Repository
 
             return orderAddress;
         }
+        public IEnumerable<OrderAddress> GetAll()
+        {
+            return _db.orderAddresses.ToList();
+        }
+       
     }
 }

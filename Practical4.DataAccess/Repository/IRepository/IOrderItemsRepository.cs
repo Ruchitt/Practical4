@@ -8,11 +8,10 @@ using System.Threading.Tasks;
 
 namespace Practical4.DataAccess.Repository.IRepository
 {
-    public interface IOrderAddressRepository
+    public interface IOrderItemsRepository
     {
-        Task<OrderAddress> Add(OrderAddress orderAddress);
-        public IEnumerable<OrderAddress> GetAll();
-
+        OrderItems GetFirstOrDefault(Expression<Func<OrderItems, bool>> filter);
+        public IEnumerable<OrderItems> GetAll();
 
     }
 }
