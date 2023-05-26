@@ -19,11 +19,13 @@ namespace Practical4.Models
         public string ZipCode { get; set; }
         public string ContactPerson { get; set; }
         public string ContactNo { get; set; }
-
+        public string Userid { get; set; }
     }
     public enum AddressType
     {
+        
         Shipping,
-        Billing
+        Billing,
+        New
     }
 }

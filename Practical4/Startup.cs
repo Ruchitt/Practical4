@@ -24,7 +24,9 @@ namespace Practical4
             //    .AddJsonFile("local.settings.json",optional:true,reloadOnChange:true)
             //    .AddEnvironmentVariables()
             //    .Build();
-            var con_string = Environment.GetEnvironmentVariable("ConnectionString");
+            var con_string = Environment.GetEnvironmentVariable("ConnectionString");;
+
+            // Register UserManager<IdentityUser>
 
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseMySql(con_string, ServerVersion.AutoDetect(con_string)));
@@ -33,6 +35,8 @@ namespace Practical4
             builder.Services.AddScoped<IOrderRepository, OrderRepository>();
             builder.Services.AddScoped<IOrderAddressRepository, OrderAddressRepository>();
             builder.Services.AddScoped<IOrderItemsRepository, OrderItemsRepository>();
+            builder.Services.AddScoped<IProductRepository, ProductRepository>();
+
 
 
         }

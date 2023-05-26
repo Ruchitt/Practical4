@@ -19,6 +19,9 @@ using System.Diagnostics.Metrics;
 using System.Xml.Linq;
 using System.Net;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using Practical4.DataAccess;
+using System.Collections.Generic;
+using System.Text.Json;
 
 namespace Practical4
 {
@@ -28,14 +31,18 @@ namespace Practical4
         private readonly IOrderRepository _orderRepository;
         private readonly IOrderAddressRepository _orderAddressRepository;
         private readonly IOrderItemsRepository _orderItemsRepository;
+        private readonly IProductRepository _productsRepository;
+        private readonly ApplicationDbContext _db;
 
 
-        public Function1(IAddressRepository addressRepository, IOrderRepository orderRepository, IOrderAddressRepository orderAddressRepository, IOrderItemsRepository orderItemsRepository)
+        public Function1(IProductRepository productsRepository, IAddressRepository addressRepository, IOrderRepository orderRepository, IOrderAddressRepository orderAddressRepository, IOrderItemsRepository orderItemsRepository, ApplicationDbContext db)
         {
             _addressRepository = addressRepository;
             _orderRepository = orderRepository;
             _orderAddressRepository = orderAddressRepository;
             _orderItemsRepository = orderItemsRepository;
+            _productsRepository = productsRepository;
+            _db = db;
 
         }
 
@@ -47,10 +54,75 @@ namespace Practical4
             try
             {
                 string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                JsonDocument jsonDocument = JsonDocument.Parse(requestBody);
+                string userId = jsonDocument.RootElement.GetProperty("Userid").GetString();
                 var address = JsonConvert.DeserializeObject<Address>(requestBody);
+                address.Type = AddressType.New;
+                address.Userid = userId;
                 var addedAddress = _addressRepository.Add(address);
 
                 return new OkObjectResult(new Response { Data = addedAddress, Status = "Success" });
+            }
+            catch (Exception ex)
+            {
+                return new OkObjectResult(new Response { Data = "Error While Adding Address", Status = "Error" });
+
+            }
+        }
+        [FunctionName("AddToCart")]
+        public async Task<IActionResult> AddToCart(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
+            ILogger log)
+        {
+            try
+            {
+                string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                JsonDocument jsonDocument = JsonDocument.Parse(requestBody);
+                string userId = jsonDocument.RootElement.GetProperty("userId").GetString();
+                int productId = jsonDocument.RootElement.GetProperty("product").GetInt32();
+                string action = jsonDocument.RootElement.GetProperty("action").GetString();
+                var usercarts = _db.usercart.Where(x => x.UserId == userId && x.ProductId == productId).FirstOrDefault();
+                if (action == "dec" && usercarts != null)
+                {
+                    if (usercarts.qty > 1)
+                    {
+                        usercarts.qty -= 1;
+                        _db.usercart.Update(usercarts);
+                        _db.SaveChanges();
+                    }
+                    else
+                    {
+                        _db.usercart.Remove(usercarts);
+                        _db.SaveChanges();
+                    }
+                }
+                else
+                {
+                    if (usercarts == null)
+                    {
+                        var carts = new usercart()
+                        {
+                            ProductId = productId,
+                            UserId = userId,
+                            qty = 1
+
+                        };
+                        _db.usercart.Add(carts);
+                        _db.SaveChanges();
+                    }
+                    else
+                    {
+                        usercarts.qty += 1;
+                        _db.usercart.Update(usercarts);
+                        _db.SaveChanges();
+
+                    }
+                }
+
+
+
+
+                return new OkObjectResult(new Response { Data = null, Status = "Success" });
             }
             catch (Exception ex)
             {
@@ -67,12 +139,76 @@ namespace Practical4
         {
             try
             {
-                var addresses = _addressRepository.GetAll();
+                string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                var addresses = _addressRepository.GetAll().Where(x => x.Userid == requestBody);
                 return new OkObjectResult(new Response { Data = addresses, Status = "Success" });
             }
             catch (Exception ex)
             {
                 return new OkObjectResult(new Response { Data = "Error While Getting AddressList", Status = "Error" });
+
+            }
+        }
+
+        [FunctionName("GetProductList")]
+        public async Task<IActionResult> GetProductList(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
+            ILogger log)
+        {
+            try
+            {
+                var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                var products = _productsRepository.GetAll();
+                if (requestBody != null)
+                {
+                    var requestData = JsonConvert.DeserializeObject<List<ProductQuantity>>(requestBody);
+
+                    if (requestData != null)
+                    {
+                        var productDetails = products.Where(p => requestData.Any(q => q.ProductId == p.ProductId))
+                                    .Select(p => new
+                                    {
+                                        Product = p,
+                                        Qty = requestData.FirstOrDefault(q => q.ProductId == p.ProductId)?.Quantity ?? 0
+                                    })
+                                    .ToList();
+                        return new OkObjectResult(new Response { Data = productDetails, Status = "Success" });
+
+                    }
+                }             
+                return new OkObjectResult(new Response { Data = products, Status = "Success" });
+            }
+            catch (Exception ex)
+            {
+                return new OkObjectResult(new Response { Data = "Error While Getting ProductsList", Status = "Error" });
+
+            }
+        }
+
+        [FunctionName("GetUserCart")]
+        public async Task<IActionResult> GetUserCart(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
+            ILogger log)
+        {
+            try
+            {
+                string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                var usercarts = _db.usercart.Where(x => x.UserId == requestBody);
+                var productList = usercarts
+                                .Join(_db.products,
+                                    cartItem => cartItem.ProductId,
+                                    product => product.ProductId,
+                                    (cartItem, product) => new
+                                    {
+                                        Product = product,
+                                        Qty = cartItem.qty
+                                    })
+                                .ToList();
+                return new OkObjectResult(new Response { Data = productList, Status = "Success" });
+            }
+            catch (Exception ex)
+            {
+                return new OkObjectResult(new Response { Data = "Error While Getting CartList", Status = "Error" });
 
             }
         }
@@ -112,9 +248,9 @@ namespace Practical4
             var shippingaddressId = (int)jsonObj["shippingaddressid"];
             var billingaddressId = (int)jsonObj["billingaddressid"];
             var addressDetails = _addressRepository.GetFirstOrDefault(x => x.AddressId == shippingaddressId & x.AddressId == billingaddressId);
-            if(addressDetails==null)
+            if (addressDetails == null)
             {
-               return new OkObjectResult(new Response { Data = "Address Not Found", Status = "Error" });
+                return new OkObjectResult(new Response { Data = "Address Not Found", Status = "Error" });
             }
 
             using (var client = new HttpClient())
@@ -145,7 +281,7 @@ namespace Practical4
                 }
                 else
                 {
-                    return new OkObjectResult(new Response { Data ="Error While Creating Draft Order", Status = "Error" });
+                    return new OkObjectResult(new Response { Data = "Error While Creating Draft Order", Status = "Error" });
                 }
             }
         }
@@ -195,7 +331,7 @@ namespace Practical4
                 string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
                 var jsonObj = JObject.Parse(requestBody);
 
-                string? customerNameOrEmail =(string) jsonObj["customerNameOrEmail"];
+                string? customerNameOrEmail = (string)jsonObj["customerNameOrEmail"];
                 string? orderStatus = (string)jsonObj["orderStatus"];
                 string? productId = (string)jsonObj["productId"];
                 string? dateRange = (string)jsonObj["dateRange"];
@@ -225,25 +361,25 @@ namespace Practical4
                 var orderitems = _orderItemsRepository.GetAll();
 
                 var obj = (from o in orders
-                          join oa in orderaddress on o.OrderId equals oa.OrderId
-                          join a in address on oa.AddressId equals a.AddressId
-                          join oi in orderitems on o.OrderId equals oi.OrderId into a1
-                          where o.CustomerName.ToLower().Contains(customerNameOrEmail.ToLower())
-                          || o.CustomerEmail.ToLower().Contains(customerNameOrEmail.ToLower())
+                           join oa in orderaddress on o.OrderId equals oa.OrderId
+                           join a in address on oa.AddressId equals a.AddressId
+                           join oi in orderitems on o.OrderId equals oi.OrderId into a1
+                           where o.CustomerName.ToLower().Contains(customerNameOrEmail.ToLower())
+                           || o.CustomerEmail.ToLower().Contains(customerNameOrEmail.ToLower())
                            select new
-                          {
-                              OrderID = o.OrderId,
-                              Description = o.Note,
-                              Customer_name = o.CustomerName,
-                              email = o.CustomerEmail,
-                              status = o.Status,
-                              totalItems = a1.Count(),
-                              Total_Amount = o.TotalAmount,
-                              Shipping_address = a
-                          }).DistinctBy(x=>x.OrderID);
+                           {
+                               OrderID = o.OrderId,
+                               Description = o.Note,
+                               Customer_name = o.CustomerName,
+                               email = o.CustomerEmail,
+                               status = o.Status,
+                               totalItems = a1.Count(),
+                               Total_Amount = o.TotalAmount,
+                               Shipping_address = a
+                           }).DistinctBy(x => x.OrderID);
 
 
-                return new OkObjectResult(new  { Data = obj , Status = "Success" });
+                return new OkObjectResult(new { Data = obj, Status = "Success" });
             }
             catch (Exception ex)
             {
@@ -251,6 +387,12 @@ namespace Practical4
 
             }
         }
+    }
+
+    public class ProductQuantity
+    {
+        public int ProductId { get; set; }
+        public int Quantity { get; set; }
     }
 }
 

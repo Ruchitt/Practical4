@@ -20,6 +20,8 @@ namespace Practical4.DataAccess
         public DbSet<OrderAddress> orderAddresses { get; set; }
         public DbSet<Order> orders { get; set; }
         public DbSet<OrderItems> orderItems { get; set; }
+        public DbSet<Products> products { get; set; }
+        public DbSet<usercart> usercart { get; set; }
 
 
     }
